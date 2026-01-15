@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookCard } from "@/components/shared/book-card"
-import { cn } from "@/lib/utils"
+import { cn, getImageUrl } from "@/lib/utils"
 import { useEffect } from "react"
 import { fetchApi } from "@/lib/api-client"
 import { Livre, Emprunt, Reservation, Favori, Message } from "@/lib/types"
@@ -390,7 +390,7 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
                         <div key={loan.id_emprunt} className="flex items-center gap-4 p-4 bg-secondary/50 rounded-lg">
                           <div className="w-12 h-16 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
                             {loan.livre?.image_url ? (
-                              <img src={loan.livre.image_url} alt={loan.livre.titre} className="w-full h-full object-cover" />
+                              <img src={getImageUrl(loan.livre.image_url)} alt={loan.livre.titre} className="w-full h-full object-cover" />
                             ) : (
                               <Book className="w-6 h-6 text-muted-foreground" />
                             )}
@@ -447,7 +447,7 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
                       <CardContent className="p-4 flex items-center gap-4">
                         <div className="w-16 h-24 bg-muted rounded overflow-hidden flex-shrink-0">
                           {loan.livre?.image_url ? (
-                            <img src={loan.livre.image_url} alt={loan.livre.titre} className="w-full h-full object-cover" />
+                            <img src={getImageUrl(loan.livre.image_url)} alt={loan.livre.titre} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <Book className="w-8 h-8 text-muted-foreground" />

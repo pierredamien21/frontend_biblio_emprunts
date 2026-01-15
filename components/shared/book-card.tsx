@@ -5,7 +5,7 @@ import { useState } from "react"
 import { Heart, BookmarkPlus, Loader2, Info } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { cn, getImageUrl } from "@/lib/utils"
 import { Livre } from "@/lib/types"
 import { fetchApi } from "@/lib/api-client"
 import { useAuth } from "@/hooks/use-auth"
@@ -85,7 +85,7 @@ export function BookCard({ book, onReserve, onFavorite, showActions = true }: Bo
         {/* Cover Image */}
         <div className="relative aspect-[2/3] bg-muted overflow-hidden">
           <img
-            src={book.image_url || `https://images.unsplash.com/photo-1543004218-ee141104975a?q=80&w=200&h=300&auto=format&fit=crop`}
+            src={getImageUrl(book.image_url)}
             alt={`Couverture de ${book.titre}`}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
