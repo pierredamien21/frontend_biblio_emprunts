@@ -1,0 +1,180 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Palette Membre - Warm teal theme */
+  --member-primary: #0f766e;
+  --member-primary-light: #66b2ab;
+  --member-accent: #d97706;
+  --member-bg: #fff8f2;
+
+  /* Palette Staff - Professional blue */
+  --staff-primary: #0b5fff;
+  --staff-primary-muted: #2f6fff;
+  --staff-bg: #f4f6f8;
+  --staff-accent: #06b6d4;
+
+  /* Palette Admin */
+  --admin-primary: #7c3aed;
+  --admin-bg: #0f1724;
+
+  /* Semantic colors */
+  --success: #16a34a;
+  --error: #dc2626;
+  --warning: #f59e0b;
+  --info: #06b6d4;
+
+  /* Base theme - Member portal default */
+  --background: #fff8f2;
+  --foreground: #0b1220;
+  --card: #ffffff;
+  --card-foreground: #0b1220;
+  --popover: #ffffff;
+  --popover-foreground: #0b1220;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f6f8;
+  --secondary-foreground: #0b1220;
+  --muted: #e6e6e6;
+  --muted-foreground: #4b5563;
+  --accent: #d97706;
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e6e6e6;
+  --input: #e6e6e6;
+  --ring: #0f766e;
+  --radius: 0.5rem;
+
+  /* Sidebar */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0b1220;
+  --sidebar-primary: #0f766e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fff8f2;
+  --sidebar-accent-foreground: #0b1220;
+  --sidebar-border: #e6e6e6;
+  --sidebar-ring: #0f766e;
+
+  /* Motion */
+  --motion-short: 120ms;
+  --motion-medium: 240ms;
+  --motion-long: 400ms;
+}
+
+/* Staff theme variant */
+.theme-staff {
+  --background: #f4f6f8;
+  --primary: #0b5fff;
+  --primary-foreground: #ffffff;
+  --accent: #06b6d4;
+  --accent-foreground: #ffffff;
+  --ring: #0b5fff;
+  --sidebar-primary: #0b5fff;
+  --sidebar-accent: #e7edf7;
+}
+
+/* Admin theme variant */
+.theme-admin {
+  --background: #0f1724;
+  --foreground: #ffffff;
+  --card: #1a2332;
+  --card-foreground: #ffffff;
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --muted: #2a3340;
+  --muted-foreground: #94a3b8;
+  --border: #2a3340;
+  --sidebar: #0b1220;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #7c3aed;
+  --sidebar-accent: #1a2332;
+}
+
+@theme inline {
+  --font-sans: "Inter", "Inter Fallback", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Merriweather", "Merriweather Fallback", Georgia, serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Custom colors */
+  --color-member-primary: #0f766e;
+  --color-member-accent: #d97706;
+  --color-staff-primary: #0b5fff;
+  --color-admin-primary: #7c3aed;
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+  --color-info: #06b6d4;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Skeleton animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
