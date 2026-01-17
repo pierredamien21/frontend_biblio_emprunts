@@ -9,6 +9,7 @@ import { cn, getImageUrl } from "@/lib/utils"
 import { Livre } from "@/lib/types"
 import { fetchApi } from "@/lib/api-client"
 import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 import { BookDetailModal } from "@/components/shared/book-detail-modal"
 
 interface BookCardProps {
@@ -20,6 +21,7 @@ interface BookCardProps {
 
 export function BookCard({ book, onReserve, onFavorite, showActions = true }: BookCardProps) {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [isFavorited, setIsFavorited] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [isActionLoading, setIsActionLoading] = useState(false)
@@ -33,16 +35,28 @@ export function BookCard({ book, onReserve, onFavorite, showActions = true }: Bo
     try {
       if (isFavorited) {
         await fetchApi(`/favoris/${book.id_livre}`, { method: "DELETE" })
+        toast({
+          title: "Retiré des favoris",
+          description: `"${book.titre}" a été retiré de vos favoris`
+        })
       } else {
         await fetchApi("/favoris/", {
           method: "POST",
           body: JSON.stringify({ id_livre: book.id_livre })
         })
+        toast({
+          title: "Ajouté aux favoris",
+          description: `"${book.titre}" a été ajouté à vos favoris ❤️`
+        })
       }
       setIsFavorited(!isFavorited)
       onFavorite?.()
-    } catch (error) {
-      console.error("Failed to update favorite:", error)
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de modifier les favoris",
+        variant: "destructive"
+      })
     } finally {
       setIsActionLoading(false)
     }
@@ -58,9 +72,17 @@ export function BookCard({ book, onReserve, onFavorite, showActions = true }: Bo
         method: "POST",
         body: JSON.stringify({ id_livre: book.id_livre })
       })
+      toast({
+        title: "Réservation effectuée",
+        description: `"${book.titre}" a été réservé avec succès`
+      })
       onReserve?.()
-    } catch (error) {
-      console.error("Failed to reserve book:", error)
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de réserver ce livre",
+        variant: "destructive"
+      })
     } finally {
       setIsActionLoading(false)
     }
@@ -75,8 +97,7 @@ export function BookCard({ book, onReserve, onFavorite, showActions = true }: Bo
       <div
         className={cn(
           "group relative bg-card rounded-lg overflow-hidden border border-border",
-          "transition-all duration-[120ms] ease-[cubic-bezier(.2,.8,.2,1)]",
-          "hover:-translate-y-1.5 hover:shadow-lg cursor-pointer",
+          "hover-lift cursor-pointer",
         )}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -91,7 +112,7 @@ export function BookCard({ book, onReserve, onFavorite, showActions = true }: Bo
           />
 
           {/* Status Overlay */}
-          {book.disponible === false && (
+          {(book.nb_disponible === 0 || book.nb_disponible === undefined) && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <Badge variant="destructive" className="text-sm font-medium">
                 Indisponible
@@ -116,10 +137,11 @@ export function BookCard({ book, onReserve, onFavorite, showActions = true }: Bo
               disabled={isActionLoading}
               className={cn(
                 "absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center",
-                "transition-all duration-150 z-10",
+                "transition-all duration-200 z-10",
+                "hover:scale-110 active:scale-95",
                 isActionLoading ? "opacity-50" : "",
                 isFavorited
-                  ? "bg-red-500 text-white"
+                  ? "bg-red-500 text-white shadow-lg shadow-red-500/50 animate-in zoom-in-50"
                   : "bg-white/90 text-muted-foreground hover:bg-white hover:text-red-500",
               )}
             >
@@ -145,10 +167,10 @@ export function BookCard({ book, onReserve, onFavorite, showActions = true }: Bo
           {/* Availability Badge & Action */}
           <div className="mt-3 flex items-center justify-between gap-2">
             <Badge
-              variant={book.disponible !== false ? "default" : "secondary"}
-              className={cn("text-[10px] px-1.5 py-0", book.disponible !== false ? "bg-success text-white" : "bg-muted text-muted-foreground")}
+              variant={(book.nb_disponible && book.nb_disponible > 0) ? "default" : "secondary"}
+              className={cn("text-[10px] px-1.5 py-0", (book.nb_disponible && book.nb_disponible > 0) ? "bg-success text-white" : "bg-muted text-muted-foreground")}
             >
-              {book.disponible !== false ? "Disponible" : "Réservable"}
+              {(book.nb_disponible && book.nb_disponible > 0) ? "Disponible" : "Réservable"}
             </Badge>
 
             {showActions && user && (

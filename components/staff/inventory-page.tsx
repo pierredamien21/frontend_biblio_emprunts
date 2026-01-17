@@ -27,6 +27,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -55,6 +65,10 @@ export function InventoryPage({ onBack, onLogout }: InventoryPageProps) {
   const [selectedBook, setSelectedBook] = useState<Livre | null>(null)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
 
+  // Deletion state
+  const [bookToDelete, setBookToDelete] = useState<number | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
   useEffect(() => {
     fetchData()
   }, [])
@@ -77,14 +91,23 @@ export function InventoryPage({ onBack, onLogout }: InventoryPageProps) {
     }
   }
 
-  const handleDeleteBook = async (id: number) => {
-    if (!confirm("Voulez-vous vraiment supprimer ce livre ? Cette action supprimera également tous ses exemplaires.")) return
+  const confirmDeleteBook = (id: number) => {
+    setBookToDelete(id)
+    setShowDeleteDialog(true)
+  }
+
+  const handleDeleteBook = async () => {
+    if (!bookToDelete) return
+
     try {
-      await fetchApi(`/livres/${id}`, { method: "DELETE" })
+      await fetchApi(`/livres/${bookToDelete}`, { method: "DELETE" })
       toast({ title: "Succès", description: "Livre supprimé." })
       fetchData()
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" })
+    } finally {
+      setShowDeleteDialog(false)
+      setBookToDelete(null)
     }
   }
 
@@ -278,6 +301,24 @@ export function InventoryPage({ onBack, onLogout }: InventoryPageProps) {
             </Table>
           </div>
         )}
+
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent className="z-[100]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Cette action est irréversible. Cela supprimera définitivement le livre et tous ses exemplaires associés.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteBook} className="bg-destructive hover:bg-destructive/90">
+                {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
           <DialogContent className="sm:max-w-lg">

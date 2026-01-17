@@ -80,6 +80,7 @@ interface Member {
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", id: "dashboard" },
+  { icon: BookOpen, label: "Catalogue", id: "catalog" },
   { icon: ArrowLeftRight, label: "Comptoir", id: "circulation", badge: 5 },
   { icon: Users, label: "Membres", id: "members" },
   { icon: Package, label: "Inventaire", id: "inventory" },
@@ -189,6 +190,15 @@ export function StaffDashboard({ onLogout, onNavigate }: StaffDashboardProps) {
       onNavigate("circulation")
     } else if (id === "inventory") {
       onNavigate("inventory")
+    } else if (id === "catalog") {
+      window.location.href = "/" // Redirect to public catalog
+    } else if (id === "alerts" || id === "settings") {
+      toast({
+        title: "Bientôt disponible",
+        description: "Cette fonctionnalité sera disponible dans une prochaine mise à jour.",
+      })
+      // Keep on dashboard or previous view to avoid blank screen if view not implemented
+      setActiveMenu("dashboard")
     }
   }
 
@@ -394,18 +404,23 @@ export function StaffDashboard({ onLogout, onNavigate }: StaffDashboardProps) {
           {activeMenu === "dashboard" && (
             <div className="animate-fade-in font-inter">
               {/* Header */}
-              <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Tableau de bord</h1>
-                  <p className="text-muted-foreground">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Bibliothèque Centrale</p>
+              <div className="mb-8 relative overflow-hidden rounded-2xl p-6 lg:p-8 bg-white border border-border shadow-sm">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#0B5FFF]/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                  <div>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-[#0B1220]">Tableau de bord</h1>
+                    <p className="text-muted-foreground mt-1">
+                      {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Bibliothèque Centrale
+                    </p>
+                  </div>
+                  <Button
+                    className="bg-[#0B5FFF] hover:bg-[#0B5FFF]/90 text-white w-full lg:w-auto shadow-lg shadow-[#0B5FFF]/20"
+                    onClick={() => onNavigate("circulation")}
+                  >
+                    <ArrowLeftRight className="w-4 h-4 mr-2" />
+                    Ouvrir le comptoir
+                  </Button>
                 </div>
-                <Button
-                  className="bg-[#0B5FFF] hover:bg-[#0B5FFF]/90 text-white w-full lg:w-auto"
-                  onClick={() => onNavigate("circulation")}
-                >
-                  <ArrowLeftRight className="w-4 h-4 mr-2" />
-                  Ouvrir le comptoir
-                </Button>
               </div>
 
               {/* KPI Cards */}

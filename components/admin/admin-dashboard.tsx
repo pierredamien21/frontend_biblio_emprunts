@@ -42,6 +42,7 @@ interface AdminDashboardProps {
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Vue d'ensemble", id: "overview" },
+  { icon: BookOpen, label: "Catalogue", id: "catalog" },
   { icon: Users, label: "Bibliothécaires", id: "staff" },
   { icon: DollarSign, label: "Sanctions", id: "sanctions" },
   { icon: BookText, label: "Auteurs", id: "auteurs" },
@@ -76,10 +77,27 @@ const staffMembers = [
   },
 ]
 
+import { fetchApi } from "@/lib/api-client"
+import { Stats } from "@/lib/types"
+import { useEffect } from "react"
+
 export function AdminDashboard({ onLogout, onNavigate }: AdminDashboardProps) {
   const { user } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeMenu, setActiveMenu] = useState("overview")
+  const [stats, setStats] = useState<Stats | null>(null)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await fetchApi("/stats/")
+        setStats(data)
+      } catch (error) {
+        console.error("Failed to fetch stats:", error)
+      }
+    }
+    fetchStats()
+  }, [])
 
   // Settings state
   const [loanDuration, setLoanDuration] = useState("21")
@@ -141,7 +159,13 @@ export function AdminDashboard({ onLogout, onNavigate }: AdminDashboardProps) {
               {menuItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => setActiveMenu(item.id)}
+                  onClick={() => {
+                    if (item.id === "catalog") {
+                      onNavigate("catalog")
+                    } else {
+                      setActiveMenu(item.id)
+                    }
+                  }}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
                     activeMenu === item.id
@@ -206,28 +230,35 @@ export function AdminDashboard({ onLogout, onNavigate }: AdminDashboardProps) {
         <main className="flex-1 p-4 lg:p-8">
           {activeMenu === "overview" && (
             <>
-              <div className="mb-8">
-                <h1 className="text-2xl lg:text-3xl font-bold text-white mb-2">Vue d'ensemble</h1>
-                <p className="text-[#94A3B8]">Pilotage global de la bibliothèque</p>
+              <div className="mb-8 relative overflow-hidden rounded-2xl p-6 lg:p-8 bg-[#1A2332] border border-[#2A3340] shadow-xl">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#7C3AED]/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-50" />
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                  <div>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-white">Vue d'ensemble</h1>
+                    <p className="text-[#94A3B8] mt-1">Pilotage global de la bibliothèque · Administration Système</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button variant="outline" size="sm" className="border-[#2A3340] text-white hover:bg-[#2A3340]">
+                      <Download className="w-4 h-4 mr-2" />
+                      Rapport
+                    </Button>
+                  </div>
+                </div>
               </div>
 
+              {/* KPI Grid */}
               {/* KPI Grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <Card className="bg-[#1A2332] border-[#2A3340]">
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-3xl font-bold text-white">1,247</p>
+                        <p className="text-3xl font-bold text-white">{stats ? stats.global.total_membres : "..."}</p>
                         <p className="text-sm text-[#94A3B8]">Membres total</p>
                       </div>
                       <div className="w-12 h-12 bg-[#7C3AED]/20 rounded-full flex items-center justify-center">
                         <Users className="w-6 h-6 text-[#7C3AED]" />
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1 mt-2">
-                      <TrendingUp className="w-3.5 h-3.5 text-green-400" />
-                      <span className="text-xs text-green-400 font-medium">+8%</span>
-                      <span className="text-xs text-[#94A3B8]">ce mois</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -236,8 +267,8 @@ export function AdminDashboard({ onLogout, onNavigate }: AdminDashboardProps) {
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-3xl font-bold text-white">8,432</p>
-                        <p className="text-sm text-[#94A3B8]">Prêts ce mois</p>
+                        <p className="text-3xl font-bold text-white">{stats ? stats.global.emprunts_actifs : "..."}</p>
+                        <p className="text-sm text-[#94A3B8]">Prêts actifs</p>
                       </div>
                       <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
                         <BookOpen className="w-6 h-6 text-blue-400" />
@@ -250,11 +281,11 @@ export function AdminDashboard({ onLogout, onNavigate }: AdminDashboardProps) {
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-3xl font-bold text-white">€247</p>
-                        <p className="text-sm text-[#94A3B8]">Amendes perçues</p>
+                        <p className="text-3xl font-bold text-white">{stats ? stats.global.total_exemplaires : "..."}</p>
+                        <p className="text-sm text-[#94A3B8]">Exemplaires</p>
                       </div>
                       <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center">
-                        <DollarSign className="w-6 h-6 text-yellow-400" />
+                        <BookText className="w-6 h-6 text-yellow-400" />
                       </div>
                     </div>
                   </CardContent>
@@ -264,7 +295,7 @@ export function AdminDashboard({ onLogout, onNavigate }: AdminDashboardProps) {
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-3xl font-bold text-orange-400">42</p>
+                        <p className="text-3xl font-bold text-orange-400">{stats ? stats.global.retards : "..."}</p>
                         <p className="text-sm text-[#94A3B8]">Retards actifs</p>
                       </div>
                       <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center">
@@ -290,6 +321,7 @@ export function AdminDashboard({ onLogout, onNavigate }: AdminDashboardProps) {
                       <div className="text-center">
                         <BarChart3 className="w-12 h-12 text-[#94A3B8] mx-auto mb-2" />
                         <p className="text-[#94A3B8] text-sm">Graphique de fréquentation</p>
+                        <p className="text-[#94A3B8] text-xs mt-1 opacity-60">Données de statistiques hebdomadaires non disponibles</p>
                       </div>
                     </div>
                   </CardContent>

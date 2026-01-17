@@ -37,9 +37,10 @@ async function runTests() {
 
     const booksSuccess = await testEndpoint("/livres/", "Books Endpoint");
     const categoriesSuccess = await testEndpoint("/categories/", "Categories Endpoint");
+    const searchSuccess = await testEndpoint("/livres/?titre=Harry", "Search Endpoint (Query Param)");
 
     console.log("\n=== SUMMARY ===");
-    if (booksSuccess && categoriesSuccess) {
+    if (booksSuccess && categoriesSuccess && searchSuccess) {
         console.log("✅ All public endpoints are reachable and returning JSON.");
     } else {
         console.log("❌ Some endpoints failed. Check backend status or CORS.");

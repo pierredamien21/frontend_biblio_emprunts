@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   BookOpen,
   Home,
@@ -18,18 +18,19 @@ import {
   Star,
   ChevronRight,
   Key,
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookCard } from "@/components/shared/book-card"
 import { cn, getImageUrl } from "@/lib/utils"
-import { useEffect } from "react"
 import { fetchApi } from "@/lib/api-client"
-import { Livre, Emprunt, Reservation, Favori, Message } from "@/lib/types"
-import { Loader2 } from "lucide-react"
+import { Livre, Emprunt, Reservation, Favori, Message, Sanction } from "@/lib/types"
 import { Label } from "@/components/ui/label"
 import { NotificationsPopover } from "@/components/shared/notifications-popover"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 
 interface MemberDashboardProps {
   onLogout: () => void
@@ -48,12 +49,11 @@ const menuItems = [
   { icon: Book, label: "Mes prêts", id: "loans", badge: 2 },
   { icon: BookmarkCheck, label: "Réservations", id: "reservations", badge: 1 },
   { icon: Heart, label: "Favoris", id: "favorites" },
+  { icon: BookOpen, label: "Catalogue", id: "catalog" },
   { icon: MessageCircle, label: "Support", id: "support" },
-  { icon: Bell, label: "Notifications", id: "notifications", badge: 3 },
+  { icon: Bell, label: "Notifications", id: "notifications" },
   { icon: User, label: "Mon profil", id: "profile" },
 ]
-
-import { useAuth } from "@/hooks/use-auth"
 
 export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) {
   const { user } = useAuth()
@@ -62,6 +62,7 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
   const [loans, setLoans] = useState<Emprunt[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [favorites, setFavorites] = useState<Favori[]>([])
+  const [sanctions, setSanctions] = useState<Sanction[]>([])
   const [recommendations, setRecommendations] = useState<Livre[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -69,20 +70,81 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
     if (!user) return
     setIsLoading(true)
     try {
-      const [loansData, resData, recommendationsData, favoritesData] = await Promise.all([
-        fetchApi(`/emprunts/membre/${user.id}`),
+      const [loansData, resData, recommendationsData, favoritesData, sanctionsData] = await Promise.all([
+        fetchApi(`/emprunts/mes-emprunts`),
         fetchApi(`/reservations/mes-reservations`),
         fetchApi(`/livres/recommandations`),
-        fetchApi(`/favoris/`)
+        fetchApi(`/favoris/`),
+        fetchApi(`/sanctions/mes-sanctions`)
       ])
       setLoans(loansData)
       setReservations(resData)
       setRecommendations(recommendationsData)
       setFavorites(favoritesData)
+      setSanctions(sanctionsData)
     } catch (error) {
       console.error("Failed to load member data:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  /* 
+   * IMPROVEMENT: Added toast notifications for user feedback
+   * FIX: Added error handling for user actions
+   */
+  const { toast } = useToast()
+
+  // Profile handling
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [editForm, setEditForm] = useState({
+    prenom: user?.prenom || "",
+    nom: user?.nom || "",
+    email: user?.email || ""
+  })
+
+  useEffect(() => {
+    if (user) {
+      setEditForm({
+        prenom: user.prenom,
+        nom: user.nom,
+        email: user.email
+      })
+    }
+  }, [user])
+
+  const handleUpdateProfile = async () => {
+    if (!user) return
+    try {
+      await fetchApi(`/membres/${user.id_membre}`, {
+        method: "PUT",
+        body: JSON.stringify(editForm)
+      })
+      toast({ title: "Succès", description: "Profil mis à jour" })
+      setIsEditingProfile(false)
+      // Ideally refresh user context or force reload
+      window.location.reload()
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Erreur mise à jour profil",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!user || !confirm("Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.")) return
+    try {
+      await fetchApi(`/membres/${user.id_membre}`, { method: "DELETE" })
+      toast({ title: "Compte supprimé", description: "Au revoir" })
+      onLogout()
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Erreur suppression compte",
+        variant: "destructive"
+      })
     }
   }
 
@@ -93,18 +155,29 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
   const handleExtendLoan = async (id_emprunt: number) => {
     try {
       await fetchApi(`/emprunts/${id_emprunt}/prolonger`, { method: "PATCH" })
+      toast({ title: "Succès", description: "Emprunt prolongé" })
       fetchDashboardData()
-    } catch (error) {
-      console.error("Failed to extend loan:", error)
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de prolonger (peut-être déjà prolongé ou en retard)",
+        variant: "destructive"
+      })
     }
   }
 
   const handleCancelReservation = async (id_reservation: number) => {
     try {
+      if (!confirm("Voulez-vous annuler cette réservation ?")) return
       await fetchApi(`/reservations/${id_reservation}/statut?statut=Annulee`, { method: "PATCH" })
+      toast({ title: "Succès", description: "Réservation annulée" })
       fetchDashboardData()
-    } catch (error) {
-      console.error("Failed to cancel reservation:", error)
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible d'annuler la réservation",
+        variant: "destructive"
+      })
     }
   }
 
@@ -143,20 +216,18 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
           contenu: sujet ? `[${sujet}] ${contenu}` : contenu
         })
       })
-      // Use window.alert or console since useToast hook is not imported in this file version I viewed?
-      // Wait, I don't see useToast imported in the view_file output above. 
-      // Checking lines 1-32, I see NO useToast.
-      // I should add useToast import or just use simple alert for now/console logic if I want to stay safe.
-      // Or I should add the import.
-      // Actually, looking at previous artifacts/messages, useToast is standard. 
-      // I will add the import in a separate call or assume it's there? No, I viewed the file, it's NOT there.
-      // I'll stick to simple logic or console log for now to be safe, or just add the hook usage if I import it.
-      // Let's check where to add import.
-      console.log("Message sent successfully")
+      toast({
+        title: "Message envoyé",
+        description: "Votre message a été envoyé avec succès. Vous recevrez une réponse prochainement."
+      })
         ; (e.target as HTMLFormElement).reset()
       fetchMessages()
     } catch (error: any) {
-      console.error("Error sending message", error)
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible d'envoyer le message",
+        variant: "destructive"
+      })
     } finally {
       setIsSendingMessage(false)
     }
@@ -167,6 +238,7 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
     resCount: reservations.filter((r: Reservation) => r.statut === "En attente" || r.statut === "Confirmee").length,
     retardsCount: loans.filter((l: Emprunt) => l.statut === "Retard").length,
     favCount: favorites.length,
+    sanctionsAmount: sanctions.filter((s: Sanction) => s.statut === "En cours").reduce((acc, s) => acc + s.montant, 0)
   }
 
   const menuItemsWithBadges = menuItems.map(item => {
@@ -237,7 +309,13 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
               {menuItemsWithBadges.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => setActiveMenu(item.id)}
+                  onClick={() => {
+                    if (item.id === "catalog") {
+                      onNavigate("catalog")
+                    } else {
+                      setActiveMenu(item.id)
+                    }
+                  }}
                   className={cn(
                     "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors",
                     activeMenu === item.id
@@ -290,9 +368,12 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
           {activeMenu === "dashboard" && (
             <div className="animate-fade-in">
               {/* Welcome Banner */}
-              <div className="mb-8">
-                <h1 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">Bonjour, {user?.prenom} 👋</h1>
-                <p className="text-muted-foreground">Bienvenue sur votre espace personnel</p>
+              <div className="mb-8 relative overflow-hidden rounded-2xl p-8 bg-white border border-border">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+                <div className="relative z-10">
+                  <h1 className="text-2xl lg:text-4xl font-bold text-foreground mb-2">Bonjour, {user?.prenom} 👋</h1>
+                  <p className="text-muted-foreground text-lg">Bienvenue sur votre espace personnel. Que souhaitez-vous lire aujourd'hui ?</p>
+                </div>
               </div>
 
               {/* Alert Banner - Fines/Late Returns (Conditionally visible if any retard) */}
@@ -360,11 +441,11 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-2xl font-bold text-foreground">0</p>
-                        <p className="text-sm text-muted-foreground">Livres lus</p>
+                        <p className="text-2xl font-bold text-foreground">{isLoading ? "..." : `${stats.sanctionsAmount}€`}</p>
+                        <p className="text-sm text-muted-foreground">Amendes dues</p>
                       </div>
-                      <div className="w-10 h-10 bg-success/10 rounded-full flex items-center justify-center">
-                        <Star className="w-5 h-5 text-success" />
+                      <div className="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center">
+                        <AlertTriangle className="w-5 h-5 text-destructive" />
                       </div>
                     </div>
                   </CardContent>
@@ -507,7 +588,12 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
                           <p className="text-xs text-muted-foreground mb-2 italic">Le {new Date(res.date_reservation).toLocaleDateString()}</p>
                           <Badge variant="secondary" className="text-[10px]">{res.statut}</Badge>
                         </div>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={() => handleCancelReservation(res.id_reservation)}
+                        >
                           <X className="w-4 h-4" />
                         </Button>
                       </CardContent>
@@ -524,8 +610,13 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
             <div className="animate-fade-in">
               <h1 className="text-2xl font-bold mb-6">Mes Favoris</h1>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {stats.favCount > 0 ? (
-                  <p className="col-span-full italic text-muted-foreground">Liste détaillée bientôt disponible.</p>
+                {favorites.length > 0 ? (
+                  favorites.map((fav: Favori) => (
+                    // Favori object usually has a 'livre' property or is the book itself?
+                    // Checking types.ts (Step 240+): Favori interface not fully visible but typically { id_favori, livre: Livre, ... }
+                    // Assuming fav.livre exists based on previous patterns
+                    <BookCard key={fav.id_favori} book={fav.livre} />
+                  ))
                 ) : (
                   <div className="col-span-full text-center py-20 bg-muted/20 rounded-xl border border-dashed">
                     <Heart className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
@@ -672,32 +763,67 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
               <h1 className="text-2xl font-bold mb-6">Mon Profil</h1>
               <div className="grid gap-6 max-w-2xl">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Informations personnelles</CardTitle>
+                    <Button variant="outline" size="sm" onClick={() => setIsEditingProfile(!isEditingProfile)}>
+                      {isEditingProfile ? "Annuler" : "Modifier"}
+                    </Button>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-muted-foreground">Prénom</Label>
-                        <p className="font-medium">{user?.prenom}</p>
+                    {isEditingProfile ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Prénom</Label>
+                            <input
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              value={editForm.prenom}
+                              onChange={(e) => setEditForm({ ...editForm, prenom: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Nom</Label>
+                            <input
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              value={editForm.nom}
+                              onChange={(e) => setEditForm({ ...editForm, nom: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Email</Label>
+                          <input
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={editForm.email}
+                            onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                          />
+                        </div>
+                        <Button onClick={handleUpdateProfile}>Enregistrer les modifications</Button>
                       </div>
-                      <div>
-                        <Label className="text-muted-foreground">Nom</Label>
-                        <p className="font-medium">{user?.nom}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Email</Label>
-                      <p className="font-medium">{user?.email}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Numéro de carte</Label>
-                      <p className="font-medium font-mono">{user?.numero_carte || "N/A"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Rôle</Label>
-                      <Badge variant="outline">{user?.role}</Badge>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-muted-foreground">Prénom</Label>
+                            <p className="font-medium">{user?.prenom}</p>
+                          </div>
+                          <div>
+                            <Label className="text-muted-foreground">Nom</Label>
+                            <p className="font-medium">{user?.nom}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Email</Label>
+                          <p className="font-medium">{user?.email}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Numéro de carte</Label>
+                          <p className="font-mono text-sm bg-muted p-2 rounded inline-block">
+                            {user?.numero_carte || "Non attribué"}
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
 

@@ -119,6 +119,7 @@ export function ExemplaireManager({
                 const payload: ExemplaireUpdate = {
                     code_barre: codeBarre,
                     etat: etat as any,
+                    statut_logique: "Actif", // Default to Actif for updates
                     localisation: localisation.trim() || undefined
                 }
                 await fetchApi(`/exemplaires/${editingExemplaire.id_exemplaire}`, {
@@ -132,6 +133,7 @@ export function ExemplaireManager({
                     id_livre,
                     code_barre: codeBarre,
                     etat: etat as any,
+                    statut_logique: "Actif", // Default to Actif for creation
                     localisation: localisation.trim() || undefined
                 }
                 await fetchApi("/exemplaires/", {

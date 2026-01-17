@@ -23,7 +23,7 @@ export default function Home() {
     if (isAuthenticated && role) {
       const lowerRole = role.toLowerCase()
       if (lowerRole === "membre") setCurrentView("member")
-      else if (lowerRole === "agent" || lowerRole === "bibliothécaire") setCurrentView("staff")
+      else if (lowerRole === "agent" || lowerRole === "bibliothécaire" || lowerRole === "staff") setCurrentView("staff")
       else if (lowerRole === "admin" || lowerRole === "administrateur") setCurrentView("admin")
     } else {
       setCurrentView("catalog")
@@ -48,7 +48,19 @@ export default function Home() {
 
   return (
     <main className="min-h-screen animate-fade-in">
-      {currentView === "catalog" && <PublicCatalog onNavigateToLogin={() => setCurrentView("login")} />}
+      {currentView === "catalog" && (
+        <PublicCatalog
+          onNavigateToLogin={() => setCurrentView("login")}
+          onNavigateToDashboard={() => {
+            if (role) {
+              const lowerRole = role.toLowerCase()
+              if (lowerRole === "membre") setCurrentView("member")
+              else if (lowerRole === "agent" || lowerRole === "bibliothécaire" || lowerRole === "staff") setCurrentView("staff")
+              else if (lowerRole === "admin" || lowerRole === "administrateur") setCurrentView("admin")
+            }
+          }}
+        />
+      )}
       {currentView === "login" && <LoginPage onBack={() => setCurrentView("catalog")} />}
       {currentView === "member" && <MemberDashboard onLogout={handleLogout} onNavigate={handleNavigate} />}
       {currentView === "staff" && <StaffDashboard onLogout={handleLogout} onNavigate={handleNavigate} />}

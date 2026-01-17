@@ -8,56 +8,78 @@ import { BookCard } from "@/components/shared/book-card"
 import { BookCardSkeleton } from "@/components/shared/book-card-skeleton"
 import { Livre, Categorie } from "@/lib/types"
 
-interface PublicCatalogProps {
-  onNavigateToLogin: () => void
-}
-
 import { useEffect } from "react"
 import { fetchApi } from "@/lib/api-client"
+import { useAuth } from "@/hooks/use-auth"
 
-export function PublicCatalog({ onNavigateToLogin }: PublicCatalogProps) {
+interface PublicCatalogProps {
+  onNavigateToLogin: () => void
+  onNavigateToDashboard?: () => void
+}
+
+export function PublicCatalog({ onNavigateToLogin, onNavigateToDashboard }: PublicCatalogProps) {
+  const { isAuthenticated, user, role } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("Tous")
   const [categoriesList, setCategoriesList] = useState<Categorie[]>([])
   const [books, setBooks] = useState<Livre[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  // Debounce search query
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery)
   useEffect(() => {
-    async function loadInitialData() {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Initial load of categories
+  useEffect(() => {
+    fetchApi("/categories/").then(setCategoriesList).catch(console.error)
+  }, [])
+
+  // Fetch books when search or category changes
+  useEffect(() => {
+    async function fetchBooks() {
       setIsLoading(true)
       try {
-        const [booksData, catsData] = await Promise.all([
-          fetchApi("/livres/"),
-          fetchApi("/categories/")
-        ])
-        setBooks(booksData)
-        setCategoriesList(catsData)
+        let endpoint = "/livres/"
+        const params = new URLSearchParams()
+
+        if (debouncedSearch) {
+          params.append("titre", debouncedSearch)
+        }
+
+        if (selectedCategory !== "Tous") {
+          const cat = categoriesList.find(c => c.nom_categorie === selectedCategory)
+          if (cat) {
+            params.append("id_categorie", cat.id_categorie.toString())
+          }
+        }
+
+        const queryString = params.toString()
+        if (queryString) {
+          endpoint += `?${queryString}`
+        }
+
+        const data = await fetchApi(endpoint)
+        setBooks(data)
       } catch (error) {
         console.error("Failed to load catalog:", error)
+        setBooks([])
       } finally {
         setIsLoading(false)
       }
     }
-    loadInitialData()
-  }, [])
 
-  const filteredBooks = books.filter((book: Livre) => {
-    const matchesSearch =
-      book.titre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (book.descriptions && book.descriptions.toLowerCase().includes(searchQuery.toLowerCase()))
-
-    const matchesCategory = selectedCategory === "Tous" ||
-      (categoriesList.find((c: Categorie) => c.nom_categorie === selectedCategory)?.id_categorie === book.id_categorie)
-
-    return matchesSearch && matchesCategory
-  })
+    fetchBooks()
+  }, [debouncedSearch, selectedCategory, categoriesList]) // depend on categoriesList to ensure we have IDs
 
   const displayCategories = ["Tous", ...categoriesList.map((c: Categorie) => c.nom_categorie)]
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
+      <header className="sticky top-0 z-50 glass border-b border-border shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             {/* Logo */}
@@ -84,12 +106,23 @@ export function PublicCatalog({ onNavigateToLogin }: PublicCatalogProps) {
 
             {/* Actions */}
             <div className="flex items-center gap-3">
-              <Button variant="outline" className="hidden sm:flex bg-transparent" onClick={onNavigateToLogin}>
-                Se connecter
-              </Button>
-              <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={onNavigateToLogin}>
-                S'inscrire
-              </Button>
+              {isAuthenticated ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium hidden sm:inline-block">Bonjour, {user?.prenom}</span>
+                  <Button className="bg-primary hover:bg-primary/90" onClick={onNavigateToDashboard}>
+                    Mon Dashboard
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Button variant="outline" className="hidden sm:flex bg-transparent" onClick={onNavigateToLogin}>
+                    Se connecter
+                  </Button>
+                  <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={onNavigateToLogin}>
+                    S'inscrire
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
@@ -143,7 +176,7 @@ export function PublicCatalog({ onNavigateToLogin }: PublicCatalogProps) {
         {/* Results Count */}
         <div className="mb-6 flex items-center justify-between">
           <p className="text-muted-foreground">
-            <span className="font-semibold text-foreground">{filteredBooks.length}</span> livres trouvés
+            <span className="font-semibold text-foreground">{books.length}</span> livres trouvés
           </p>
           <Button variant="ghost" size="sm" className="gap-1">
             Trier par <ChevronDown className="w-4 h-4" />
@@ -154,7 +187,7 @@ export function PublicCatalog({ onNavigateToLogin }: PublicCatalogProps) {
         <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
           {isLoading
             ? Array.from({ length: 8 }).map((_, i) => <BookCardSkeleton key={i} />)
-            : filteredBooks.map((book: Livre) => (
+            : books.map((book: Livre) => (
               <BookCard
                 key={book.id_livre}
                 book={book}
@@ -165,7 +198,7 @@ export function PublicCatalog({ onNavigateToLogin }: PublicCatalogProps) {
         </section>
 
         {/* Empty State */}
-        {!isLoading && filteredBooks.length === 0 && (
+        {!isLoading && books.length === 0 && (
           <div className="text-center py-16">
             <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">Aucun livre trouvé</h3>

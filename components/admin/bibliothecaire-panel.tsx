@@ -115,9 +115,10 @@ export function BibliothecairePanel() {
                     prenom: prenom.trim(),
                 }
                 if (password.trim()) {
-                    payload.mot_de_passe = password.trim()
+                    payload.password = password.trim()
                 }
 
+                console.log("Updating librarian:", payload)
                 await fetchApi(`/bibliothecaires/${editingBib.id_bibliotecaire}`, {
                     method: "PUT",
                     body: JSON.stringify(payload)
@@ -125,14 +126,16 @@ export function BibliothecairePanel() {
                 toast({ title: "Succès", description: "Bibliothécaire modifié" })
             } else {
                 // Create
+                // Create
                 const payload = {
                     login: login.trim(),
-                    mot_de_passe: password.trim(),
+                    password: password.trim(),
                     email: email.trim(),
                     nom: nom.trim(),
                     prenom: prenom.trim(),
-                    role
+                    role: role
                 }
+                console.log("Creating librarian:", payload)
                 await fetchApi("/bibliothecaires/", {
                     method: "POST",
                     body: JSON.stringify(payload)
