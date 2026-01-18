@@ -778,7 +778,7 @@ export function StaffDashboard({ onLogout, onNavigate }: StaffDashboardProps) {
             </div>
           )}
 
-          )}
+
 
           {activeMenu === "alerts" && (
             <div className="animate-fade-in space-y-6">
