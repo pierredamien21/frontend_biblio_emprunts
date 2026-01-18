@@ -118,6 +118,7 @@ export function StaffDashboard({ onLogout, onNavigate }: StaffDashboardProps) {
   const [selectedType, setSelectedType] = useState<string>("")
   const [recentLoans, setRecentLoans] = useState<any[]>([])
   const [todayLoans, setTodayLoans] = useState<any[]>([])
+  const [lateLoans, setLateLoans] = useState<any[]>([])
   const { toast } = useToast()
 
   useEffect(() => {
@@ -171,6 +172,35 @@ export function StaffDashboard({ onLogout, onNavigate }: StaffDashboardProps) {
         ])
         setMembers(membersData)
         setMemberTypes(typesData)
+      } else if (view === "alerts") {
+        const [loansData, membersData, livresData, exemplairesData] = await Promise.all([
+          fetchApi("/emprunts/"),
+          fetchApi("/membres/"),
+          fetchApi("/livres/"),
+          fetchApi("/exemplaires/")
+        ])
+
+        const enrichLoan = (loan: any) => {
+          const m = membersData.find((mem: any) => mem.id_membre === loan.id_membre)
+          const ex = exemplairesData.find((e: any) => e.id_exemplaire === loan.id_exemplaire)
+          const b = livresData.find((bk: any) => bk.id_livre === ex?.id_livre)
+          return {
+            ...loan,
+            memberName: m ? `${m.prenom} ${m.nom}` : `Membre #${loan.id_membre}`,
+            bookTitle: b ? b.titre : `Livre #${ex?.id_livre}`,
+            email: m?.email,
+            phone: m?.telephone
+          }
+        }
+
+        const enriched = loansData.map(enrichLoan)
+        const todayStr = new Date().toISOString().split('T')[0]
+        const late = enriched.filter((l: any) =>
+          l.statut === "En cours" &&
+          new Date(l.date_retour_prevue) < new Date() &&
+          l.date_retour_prevue !== todayStr
+        )
+        setLateLoans(late)
       }
     } catch (error) {
       console.error(`Failed to fetch data for ${view}:`, error)
@@ -191,8 +221,10 @@ export function StaffDashboard({ onLogout, onNavigate }: StaffDashboardProps) {
     } else if (id === "inventory") {
       onNavigate("inventory")
     } else if (id === "catalog") {
-      window.location.href = "/" // Redirect to public catalog
-    } else if (id === "alerts" || id === "settings") {
+      onNavigate("catalog") // Use SPA navigation instead of hard redirect
+    } else if (id === "catalog") {
+      onNavigate("catalog") // Use SPA navigation instead of hard redirect
+    } else if (id === "settings") {
       toast({
         title: "Bientôt disponible",
         description: "Cette fonctionnalité sera disponible dans une prochaine mise à jour.",
@@ -260,11 +292,21 @@ export function StaffDashboard({ onLogout, onNavigate }: StaffDashboardProps) {
       setIsDeleteDialogOpen(false)
       fetchData("members")
     } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive"
-      })
+      // Check for foreign key constraint or generic server error that implies usage
+      const msg = error.message || ""
+      if (msg.includes("foreign key") || msg.includes("constraint") || msg.includes("500") || msg.toLowerCase().includes("suppression impossible")) {
+        toast({
+          title: "Suppression impossible",
+          description: "Ce membre possède des emprunts ou des sanctions en cours.",
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Erreur",
+          description: msg,
+          variant: "destructive"
+        })
+      }
     } finally {
       setIsSaving(false)
     }
@@ -379,7 +421,7 @@ export function StaffDashboard({ onLogout, onNavigate }: StaffDashboardProps) {
                 Déconnexion
               </Button>
 
-              {(user?.role === 'admin' || user?.role === 'administrateur' || user?.role === 'Admin') && (
+              {(user?.role === 'admin' || user?.role === 'Admin') && (
                 <div className="pt-4 mt-4 border-t border-border">
                   <Button
                     onClick={() => onNavigate("admin")}
@@ -736,8 +778,77 @@ export function StaffDashboard({ onLogout, onNavigate }: StaffDashboardProps) {
             </div>
           )}
 
+          )}
+
+          {activeMenu === "alerts" && (
+            <div className="animate-fade-in space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-destructive flex items-center gap-2">
+                    <AlertCircle className="w-6 h-6" />
+                    Retards et Alertes
+                  </h1>
+                  <p className="text-muted-foreground">Gestion des emprunts en retard</p>
+                </div>
+                <Badge variant="destructive" className="px-3 py-1 text-sm">
+                  {lateLoans.length} Retard{lateLoans.length > 1 ? 's' : ''}
+                </Badge>
+              </div>
+
+              <Card className="bg-white border-destructive/20 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Liste des retards</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {isLoading ? (
+                      <div className="flex justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-destructive" />
+                      </div>
+                    ) : lateLoans.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Shield className="w-12 h-12 mx-auto mb-2 text-green-500 opacity-50" />
+                        <p>Aucun retard à signaler. Tout est en ordre !</p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-4">
+                        {lateLoans.map((loan) => (
+                          <div key={loan.id_emprunt} className="flex items-center justify-between p-4 border border-destructive/10 bg-destructive/5 rounded-lg">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-destructive font-bold border border-destructive/20">
+                                !
+                              </div>
+                              <div>
+                                <p className="font-semibold text-foreground">{loan.memberName}</p>
+                                <p className="text-sm text-foreground/80">Livre: <span className="font-medium">{loan.bookTitle}</span></p>
+                                <div className="flex gap-2 mt-1 text-xs">
+                                  <Badge variant="outline" className="text-destructive border-destructive/30 bg-white">
+                                    Prévu le: {new Date(loan.date_retour_prevue).toLocaleDateString()}
+                                  </Badge>
+                                  {loan.phone && (
+                                    <Badge variant="secondary">Tel: {loan.phone}</Badge>
+                                  )}
+                                  {loan.email && (
+                                    <Badge variant="secondary">Email: {loan.email}</Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <Button variant="destructive" size="sm" onClick={() => onNavigate("circulation")}>
+                              Gérer
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           {/* Placeholder for unimplemented views */}
-          {!["dashboard", "members"].includes(activeMenu) && (
+          {!["dashboard", "members", "alerts"].includes(activeMenu) && (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in bg-white rounded-xl border border-dashed border-border p-12">
               <div className="w-20 h-20 bg-[#E7EDF7] rounded-full flex items-center justify-center mb-6">
                 <Settings className="w-10 h-10 text-[#0B5FFF] animate-pulse" />

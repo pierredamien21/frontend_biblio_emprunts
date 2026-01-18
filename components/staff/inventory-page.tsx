@@ -40,7 +40,8 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
+
+import { cn, getImageUrl } from "@/lib/utils"
 import { fetchApi } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { Livre, Categorie, Exemplaire } from "@/lib/types"
@@ -61,9 +62,9 @@ export function InventoryPage({ onBack, onLogout }: InventoryPageProps) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<number | "Tous">("Tous")
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [showExemplaireManager, setShowExemplaireManager] = useState(false)
   const [selectedBook, setSelectedBook] = useState<Livre | null>(null)
-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
 
   // Deletion state
   const [bookToDelete, setBookToDelete] = useState<number | null>(null)
@@ -100,12 +101,18 @@ export function InventoryPage({ onBack, onLogout }: InventoryPageProps) {
     if (!bookToDelete) return
 
     try {
+      setIsDeleting(true)
       await fetchApi(`/livres/${bookToDelete}`, { method: "DELETE" })
       toast({ title: "Succès", description: "Livre supprimé." })
       fetchData()
     } catch (error: any) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" })
+      let message = error.message
+      if (message.toLowerCase().includes("foreign key") || message.toLowerCase().includes("contrainte") || message.toLowerCase().includes("exemplaire")) {
+        message = "Impossible de supprimer ce livre car il possède des exemplaires ou des emprunts associés. Supprimez d'abord les exemplaires."
+      }
+      toast({ title: "Erreur", description: message, variant: "destructive" })
     } finally {
+      setIsDeleting(false)
       setShowDeleteDialog(false)
       setBookToDelete(null)
     }
@@ -119,38 +126,23 @@ export function InventoryPage({ onBack, onLogout }: InventoryPageProps) {
 
     try {
       const payload = {
-        titre: data.titre,
-        isbn: data.isbn,
-        editeur: data.editeur,
+        titre: (data.titre as string).trim(),
+        isbn: (data.isbn as string).trim(),
+        editeur: (data.editeur as string).trim(),
         id_categorie: parseInt(data.id_categorie as string),
-        langue: data.langue || "Français",
+        langue: (data.langue as string) || "Français",
         annee_publication: parseInt(data.annee_publication as string) || new Date().getFullYear(),
-        descriptions: data.descriptions || ""
+        descriptions: (data.descriptions as string) || "",
+        image_url: (data.image_url as string)?.trim() || ""
       }
 
-      let bookId: number;
-
-      // Create new book
-      const newBook = await fetchApi("/livres/", {
+      await fetchApi("/livres/", {
         method: "POST",
         body: JSON.stringify(payload)
       })
-      bookId = newBook.id_livre
-
-      // Upload image if selected
-      if (selectedImage && bookId) {
-        const imageFormData = new FormData()
-        imageFormData.append('file', selectedImage)
-
-        await fetchApi(`/upload/livre/${bookId}`, {
-          method: 'POST',
-          body: imageFormData
-        })
-      }
 
       toast({ title: "Succès", description: "Livre ajouté au catalogue." })
       setShowAddModal(false)
-      setSelectedImage(null)
       fetchData()
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" })
@@ -249,6 +241,7 @@ export function InventoryPage({ onBack, onLogout }: InventoryPageProps) {
             <Table>
               <TableHeader>
                 <TableRow className="bg-[#F4F6F8]">
+                  <TableHead className="font-semibold w-[80px]">Image</TableHead>
                   <TableHead className="font-semibold">Titre</TableHead>
                   <TableHead className="font-semibold text-center">Exemplaires</TableHead>
                   <TableHead className="font-semibold text-center">Disponibles</TableHead>
@@ -260,6 +253,17 @@ export function InventoryPage({ onBack, onLogout }: InventoryPageProps) {
                   const stats = getBookStats(book.id_livre)
                   return (
                     <TableRow key={book.id_livre} className="hover:bg-[#F4F6F8]/50">
+                      <TableCell>
+                        <img
+                          src={getImageUrl(book.image_url)}
+                          alt={book.titre}
+                          className="w-12 h-16 object-cover rounded shadow-sm bg-muted"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.src = "https://images.unsplash.com/photo-1543004218-ee141104975a?q=80&w=200&auto=format&fit=crop"
+                          }}
+                        />
+                      </TableCell>
                       <TableCell>
                         <p className="font-medium">{book.titre}</p>
                         <p className="text-xs text-muted-foreground font-mono">{book.isbn}</p>
@@ -287,7 +291,7 @@ export function InventoryPage({ onBack, onLogout }: InventoryPageProps) {
                               <Package className="w-4 h-4 mr-2" />
                               Gérer exemplaires
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteBook(book.id_livre)}>
+                            <DropdownMenuItem className="text-destructive" onClick={() => confirmDeleteBook(book.id_livre)}>
                               <Trash2 className="w-4 h-4 mr-2" />
                               Supprimer
                             </DropdownMenuItem>
@@ -312,7 +316,7 @@ export function InventoryPage({ onBack, onLogout }: InventoryPageProps) {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDeleteBook} className="bg-destructive hover:bg-destructive/90">
+              <AlertDialogAction onClick={handleDeleteBook} className="bg-destructive hover:bg-destructive/90">
                 {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Supprimer
               </AlertDialogAction>
@@ -364,25 +368,14 @@ export function InventoryPage({ onBack, onLogout }: InventoryPageProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cover">Image de couverture</Label>
-                  <div className="flex items-center gap-4">
-                    <Input
-                      id="cover"
-                      type="file"
-                      accept="image/*"
-                      className="cursor-pointer"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setSelectedImage(e.target.files[0])
-                        }
-                      }}
-                    />
-                    {selectedImage && (
-                      <div className="text-xs text-muted-foreground">
-                        {selectedImage.name}
-                      </div>
-                    )}
-                  </div>
+                  <Label htmlFor="image_url">URL de l'image</Label>
+                  <Input
+                    id="image_url"
+                    name="image_url"
+                    placeholder="https://example.com/cover.jpg"
+                    type="url"
+                  />
+                  <p className="text-xs text-muted-foreground">Lien direct vers l'image de couverture</p>
                 </div>
               </div>
 

@@ -102,7 +102,23 @@ export function AdminDashboard({ onLogout, onNavigate }: AdminDashboardProps) {
   // Settings state
   const [loanDuration, setLoanDuration] = useState("21")
   const [fineAmount, setFineAmount] = useState("0.20")
+
   const [maxExtensions, setMaxExtensions] = useState("2")
+
+  const handleSaveSettings = () => {
+    // Mock saving to localStorage for demo purposes since no API endpoint for settings yet
+    localStorage.setItem('biblio_settings', JSON.stringify({
+      loanDuration,
+      fineAmount,
+      maxExtensions
+    }))
+
+    // Simulate API call delay
+    setTimeout(() => {
+      // Also show a toast notification (would need to import useToast first or pass it down)
+      alert("Paramètres enregistrés avec succès") // Using alert temporarily or better: use toast if available
+    }, 500)
+  }
 
   return (
     <div className="min-h-screen bg-[#0F1724] theme-admin text-white">
@@ -484,7 +500,10 @@ export function AdminDashboard({ onLogout, onNavigate }: AdminDashboardProps) {
                       <DollarSign className="w-5 h-5 text-[#94A3B8]" />
                     </div>
                   </div>
-                  <Button className="bg-[#7C3AED] hover:bg-[#7C3AED]/90 text-white">
+                  <Button
+                    className="bg-[#7C3AED] hover:bg-[#7C3AED]/90 text-white"
+                    onClick={handleSaveSettings}
+                  >
                     Enregistrer les modifications
                   </Button>
                 </CardContent>

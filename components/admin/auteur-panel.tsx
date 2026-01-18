@@ -15,6 +15,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { fetchApi } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { Auteur, AuteurCreate } from "@/lib/types"
@@ -141,7 +143,7 @@ export function AuteurPanel() {
                         Gérez la base de données des auteurs
                     </p>
                 </div>
-                <Button onClick={handleAdd} className="gap-2">
+                <Button onClick={handleAdd} className="bg-[#7C3AED] hover:bg-[#7C3AED]/90 text-white gap-2 shadow-lg shadow-[#7C3AED]/20">
                     <Plus className="w-4 h-4" />
                     Ajouter un auteur
                 </Button>
@@ -149,15 +151,14 @@ export function AuteurPanel() {
 
             {isLoading ? (
                 <div className="flex justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                    <Loader2 className="w-8 h-8 animate-spin text-[#7C3AED]" />
                 </div>
             ) : (
-                <div className="border rounded-lg">
+                <div className="border border-[#e2e8f0] rounded-xl overflow-hidden bg-white shadow-sm">
                     <Table>
                         <TableHeader>
-                            <TableRow>
-                                <TableHead>Nom</TableHead>
-                                <TableHead>Prénom</TableHead>
+                            <TableRow className="bg-[#f8fafc] hover:bg-[#f8fafc]">
+                                <TableHead className="w-[300px]">Auteur</TableHead>
                                 <TableHead>Biographie</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -165,24 +166,44 @@ export function AuteurPanel() {
                         <TableBody>
                             {auteurs.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                                        Aucun auteur trouvé
+                                    <TableCell colSpan={3} className="text-center text-muted-foreground py-12">
+                                        <div className="flex flex-col items-center justify-center gap-2">
+                                            <BookText className="w-10 h-10 text-muted-foreground/30" />
+                                            <p>Aucun auteur trouvé</p>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 auteurs.map((auteur) => (
-                                    <TableRow key={auteur.id_auteur}>
-                                        <TableCell className="font-medium">{auteur.nom}</TableCell>
-                                        <TableCell>{auteur.prenom || "—"}</TableCell>
-                                        <TableCell className="max-w-md truncate text-sm text-muted-foreground">
-                                            {auteur.biographie || "—"}
+                                    <TableRow key={auteur.id_auteur} className="group hover:bg-[#f8fafc] transition-colors">
+                                        <TableCell>
+                                            <div className="flex items-center gap-4">
+                                                <Avatar className="h-10 w-10 border border-[#e2e8f0]">
+                                                    <AvatarFallback className="bg-[#7C3AED]/5 text-[#7C3AED] font-medium">
+                                                        {auteur.prenom ? auteur.prenom[0] : ""}{auteur.nom[0]}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <div className="font-semibold text-[#0f172a]">
+                                                        {auteur.prenom} {auteur.nom}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        ID: {auteur.id_auteur}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="max-w-md">
+                                            <p className="line-clamp-2 text-sm text-muted-foreground">
+                                                {auteur.biographie || <span className="italic opacity-50">Aucune biographie disponible</span>}
+                                            </p>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
+                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8"
+                                                    className="h-8 w-8 text-[#0f172a] hover:bg-[#0f172a]/5"
                                                     onClick={() => handleEdit(auteur)}
                                                 >
                                                     <Edit className="w-4 h-4" />
@@ -190,7 +211,7 @@ export function AuteurPanel() {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
                                                     onClick={() => handleDelete(auteur.id_auteur)}
                                                 >
                                                     <Trash2 className="w-4 h-4" />

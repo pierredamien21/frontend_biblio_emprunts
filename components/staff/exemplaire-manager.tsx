@@ -19,6 +19,16 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -57,6 +67,11 @@ export function ExemplaireManager({
     const [showForm, setShowForm] = useState(false)
     const [editingExemplaire, setEditingEmp] = useState<Exemplaire | null>(null)
     const [isSaving, setIsSaving] = useState(false)
+
+    // Delete state
+    const [exemplaireToDelete, setExemplaireToDelete] = useState<number | null>(null)
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     // Form state
     const [codeBarre, setCodeBarre] = useState("")
@@ -157,11 +172,17 @@ export function ExemplaireManager({
         }
     }
 
-    const handleDelete = async (id: number) => {
-        if (!confirm("Voulez-vous vraiment supprimer cet exemplaire ?")) return
+    const handleDeleteClick = (id: number) => {
+        setExemplaireToDelete(id)
+        setShowDeleteDialog(true)
+    }
 
+    const handleConfirmDelete = async () => {
+        if (!exemplaireToDelete) return
+
+        setIsDeleting(true)
         try {
-            await fetchApi(`/exemplaires/${id}`, { method: "DELETE" })
+            await fetchApi(`/exemplaires/${exemplaireToDelete}`, { method: "DELETE" })
             toast({ title: "Succès", description: "Exemplaire supprimé" })
             loadExemplaires()
             onUpdate?.()
@@ -171,6 +192,10 @@ export function ExemplaireManager({
                 description: error.message || "Erreur lors de la suppression",
                 variant: "destructive"
             })
+        } finally {
+            setIsDeleting(false)
+            setShowDeleteDialog(false)
+            setExemplaireToDelete(null)
         }
     }
 
@@ -361,7 +386,7 @@ export function ExemplaireManager({
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-8 w-8 text-destructive hover:text-destructive"
-                                                    onClick={() => handleDelete(ex.id_exemplaire)}
+                                                    onClick={() => handleDeleteClick(ex.id_exemplaire)}
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
@@ -380,6 +405,24 @@ export function ExemplaireManager({
                     </Button>
                 </DialogFooter>
             </DialogContent>
-        </Dialog>
+
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent className="z-[150]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Supprimer cet exemplaire ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Cette action est irréversible. L'exemplaire sera définitivement retiré de l'inventaire.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">
+                            {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Supprimer
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </Dialog >
     )
 }

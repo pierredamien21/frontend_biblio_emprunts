@@ -53,6 +53,7 @@ export interface Emprunt {
     statut: string; // 'En cours', 'Termine', 'Retard'
     renouvellement_count: number;
     commentaire?: string;
+    livre?: Livre;
 }
 
 export interface Reservation {
@@ -62,6 +63,7 @@ export interface Reservation {
     date_reservation: string;
     statut: string;
     priorite: number;
+    livre?: Livre;
 }
 
 export interface Stats {
@@ -77,6 +79,7 @@ export interface Stats {
 }
 
 export interface Favori {
+    id_favori?: number;
     id_membre: number;
     id_livre: number;
     livre?: Livre;

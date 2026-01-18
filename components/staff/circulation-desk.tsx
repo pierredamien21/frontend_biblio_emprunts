@@ -168,7 +168,7 @@ export function CirculationDesk({ onBack, onLogout }: CirculationDeskProps) {
         body: JSON.stringify({
           id_membre: selectedMember.id_membre,
           id_exemplaire: selectedExemplaire.id_exemplaire,
-          id_bibliotecaire: user.id_bibliotecaire || user.id,
+          id_bibliotecaire: user.id,
           statut: "En cours"
         })
       })

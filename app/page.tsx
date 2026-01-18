@@ -30,6 +30,15 @@ export default function Home() {
     }
   }, [isAuthenticated, role])
 
+  // Handle unauthorized events from API client
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setCurrentView("login")
+    }
+    window.addEventListener("auth:unauthorized", handleUnauthorized)
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized)
+  }, [])
+
   const handleLogout = () => {
     logout()
   }

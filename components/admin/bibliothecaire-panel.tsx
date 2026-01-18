@@ -15,6 +15,16 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -33,6 +43,8 @@ export function BibliothecairePanel() {
     const [showDialog, setShowDialog] = useState(false)
     const [editingBib, setEditingBib] = useState<BibliothecaireOut | null>(null)
     const [isSaving, setIsSaving] = useState(false)
+    const [bibToDelete, setBibToDelete] = useState<number | null>(null)
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
     // Form state
     const [login, setLogin] = useState("")
@@ -173,11 +185,16 @@ export function BibliothecairePanel() {
         }
     }
 
-    const handleDelete = async (id: number) => {
-        if (!confirm("Voulez-vous vraiment supprimer ce bibliothécaire ?")) return
+    const confirmDelete = (id: number) => {
+        setBibToDelete(id)
+        setShowDeleteDialog(true)
+    }
+
+    const handleDelete = async () => {
+        if (!bibToDelete) return
 
         try {
-            await fetchApi(`/bibliothecaires/${id}`, { method: "DELETE" })
+            await fetchApi(`/bibliothecaires/${bibToDelete}`, { method: "DELETE" })
             toast({ title: "Succès", description: "Bibliothécaire supprimé" })
             loadBibliothecaires()
         } catch (error: any) {
@@ -186,6 +203,9 @@ export function BibliothecairePanel() {
                 description: error.message || "Erreur lors de la suppression",
                 variant: "destructive"
             })
+        } finally {
+            setShowDeleteDialog(false)
+            setBibToDelete(null)
         }
     }
 
@@ -273,7 +293,7 @@ export function BibliothecairePanel() {
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-8 w-8 text-destructive hover:text-destructive"
-                                                    onClick={() => handleDelete(bib.id_bibliotecaire)}
+                                                    onClick={() => confirmDelete(bib.id_bibliotecaire)}
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
@@ -384,6 +404,23 @@ export function BibliothecairePanel() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Cette action est irréversible. Le compte du bibliothécaire sera définitivement supprimé.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                            Supprimer
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

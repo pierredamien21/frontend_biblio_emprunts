@@ -20,18 +20,11 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
     if (response.status === 401) {
         if (typeof window !== 'undefined') {
             localStorage.removeItem("token");
-            window.location.href = "/login";
+            // Dispatch a custom event that the main app can listen to
+            window.dispatchEvent(new Event("auth:unauthorized"));
         }
-        // If we redirect, we don't want to proceed with the rest of the error handling
-        // or return a response, as the page will change.
-        // However, if not in a browser environment, we should still throw an error.
-        if (typeof window === 'undefined') {
-            throw new Error("Unauthorized: Token expired or invalid.");
-        }
-        // In a browser, the redirect will prevent further execution, so we can just return
-        // or throw a specific error if we want to ensure the function exits.
-        // For now, let's assume the redirect is sufficient.
-        return new Promise(() => { }); // Return a never-resolving promise to halt execution
+        // Throw an error to stop execution of the calling function
+        throw new Error("Unauthorized: Token expired or invalid.");
     }
 
     if (!response.ok) {

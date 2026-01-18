@@ -84,9 +84,10 @@ export function SanctionsPanel() {
 
         setIsSaving(true)
         try {
+            const sanitizedMontant = montant.replace(',', '.')
             const payload: SanctionCreate = {
                 id_membre: parseInt(idMembre),
-                montant: parseFloat(montant),
+                montant: parseFloat(sanitizedMontant),
                 motif: motif.trim()
             }
 

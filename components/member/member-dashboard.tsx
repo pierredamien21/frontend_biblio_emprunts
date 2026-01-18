@@ -23,6 +23,16 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { BookCard } from "@/components/shared/book-card"
 import { cn, getImageUrl } from "@/lib/utils"
 import { fetchApi } from "@/lib/api-client"
@@ -62,9 +72,17 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
   const [loans, setLoans] = useState<Emprunt[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [favorites, setFavorites] = useState<Favori[]>([])
+
   const [sanctions, setSanctions] = useState<Sanction[]>([])
+  const [notifications, setNotifications] = useState<any[]>([])
+
   const [recommendations, setRecommendations] = useState<Livre[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Dialog states
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false)
+  const [showCancelResDialog, setShowCancelResDialog] = useState(false)
+  const [reservationToCancel, setReservationToCancel] = useState<number | null>(null)
 
   const fetchDashboardData = async () => {
     if (!user) return
@@ -80,8 +98,13 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
       setLoans(loansData)
       setReservations(resData)
       setRecommendations(recommendationsData)
+      setReservations(resData)
+      setRecommendations(recommendationsData)
       setFavorites(favoritesData)
       setSanctions(sanctionsData)
+
+      // Fetch notifications separately to not block main dashboard if it fails (or include in Promise.all)
+      fetchApi("/notifications/").then(setNotifications).catch(console.error)
     } catch (error) {
       console.error("Failed to load member data:", error)
     } finally {
@@ -116,7 +139,7 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
   const handleUpdateProfile = async () => {
     if (!user) return
     try {
-      await fetchApi(`/membres/${user.id_membre}`, {
+      await fetchApi(`/membres/${user.id}`, {
         method: "PUT",
         body: JSON.stringify(editForm)
       })
@@ -133,10 +156,14 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
     }
   }
 
-  const handleDeleteAccount = async () => {
-    if (!user || !confirm("Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.")) return
+  const handleDeleteAccountClick = () => {
+    setShowDeleteAccountDialog(true)
+  }
+
+  const handleConfirmDeleteAccount = async () => {
+    if (!user) return
     try {
-      await fetchApi(`/membres/${user.id_membre}`, { method: "DELETE" })
+      await fetchApi(`/membres/${user.id}`, { method: "DELETE" })
       toast({ title: "Compte supprimé", description: "Au revoir" })
       onLogout()
     } catch (error: any) {
@@ -145,6 +172,8 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
         description: error.message || "Erreur suppression compte",
         variant: "destructive"
       })
+    } finally {
+      setShowDeleteAccountDialog(false)
     }
   }
 
@@ -166,10 +195,16 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
     }
   }
 
-  const handleCancelReservation = async (id_reservation: number) => {
+  const handleCancelReservationClick = (id: number) => {
+    setReservationToCancel(id)
+    setShowCancelResDialog(true)
+  }
+
+  const handleConfirmCancelReservation = async () => {
+    if (!reservationToCancel) return
+
     try {
-      if (!confirm("Voulez-vous annuler cette réservation ?")) return
-      await fetchApi(`/reservations/${id_reservation}/statut?statut=Annulee`, { method: "PATCH" })
+      await fetchApi(`/reservations/${reservationToCancel}/statut?statut=Annulee`, { method: "PATCH" })
       toast({ title: "Succès", description: "Réservation annulée" })
       fetchDashboardData()
     } catch (error: any) {
@@ -178,6 +213,9 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
         description: error.message || "Impossible d'annuler la réservation",
         variant: "destructive"
       })
+    } finally {
+      setShowCancelResDialog(false)
+      setReservationToCancel(null)
     }
   }
 
@@ -245,7 +283,9 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
     if (item.id === "loans") return { ...item, badge: stats.loansCount }
     if (item.id === "reservations") return { ...item, badge: stats.resCount }
     if (item.id === "favorites") return { ...item, badge: stats.favCount }
-    if (item.id === "notifications") return { ...item, badge: 3 } // Placeholder
+    if (item.id === "reservations") return { ...item, badge: stats.resCount }
+    if (item.id === "favorites") return { ...item, badge: stats.favCount }
+    if (item.id === "notifications") return { ...item, badge: notifications.filter(n => !n.lu).length }
     return item
   })
 
@@ -592,7 +632,7 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
                           variant="ghost"
                           size="icon"
                           className="text-destructive hover:bg-destructive/10"
-                          onClick={() => handleCancelReservation(res.id_reservation)}
+                          onClick={() => handleCancelReservationClick(res.id_reservation)}
                         >
                           <X className="w-4 h-4" />
                         </Button>
@@ -615,7 +655,7 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
                     // Favori object usually has a 'livre' property or is the book itself?
                     // Checking types.ts (Step 240+): Favori interface not fully visible but typically { id_favori, livre: Livre, ... }
                     // Assuming fav.livre exists based on previous patterns
-                    <BookCard key={fav.id_favori} book={fav.livre} />
+                    fav.livre ? <BookCard key={fav.id_favori} book={fav.livre} /> : null
                   ))
                 ) : (
                   <div className="col-span-full text-center py-20 bg-muted/20 rounded-xl border border-dashed">
@@ -715,45 +755,52 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
             <div className="animate-fade-in">
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold">Notifications</h1>
-                <Button variant="outline" size="sm">Tout marquer comme lu</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const unread = notifications.filter(n => !n.lu)
+                    if (unread.length === 0) return
+                    try {
+                      await Promise.all(unread.map(n => fetchApi(`/notifications/${n.id_notification}/lu`, { method: "PATCH" })))
+                      toast({ title: "Succès", description: "Toutes les notifications marquées comme lues" })
+                      // Refresh
+                      const data = await fetchApi("/notifications/")
+                      setNotifications(data)
+                    } catch (e) {
+                      toast({ title: "Erreur", description: "Impossible de marquer comme lu", variant: "destructive" })
+                    }
+                  }}
+                >
+                  Tout marquer comme lu
+                </Button>
               </div>
               <div className="space-y-3">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="font-medium">Retour de livre bientôt dû</p>
-                        <p className="text-sm text-muted-foreground">Le livre "1984" doit être retourné dans 3 jours</p>
-                        <p className="text-xs text-muted-foreground mt-1">Il y a 2 heures</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-muted rounded-full mt-2 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="font-medium text-muted-foreground">Réservation disponible</p>
-                        <p className="text-sm text-muted-foreground">Votre réservation pour "Dune" est prête</p>
-                        <p className="text-xs text-muted-foreground mt-1">Il y a 1 jour</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-muted rounded-full mt-2 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="font-medium text-muted-foreground">Nouveaux livres disponibles</p>
-                        <p className="text-sm text-muted-foreground">10 nouveaux livres ont été ajoutés à la catégorie Science-Fiction</p>
-                        <p className="text-xs text-muted-foreground mt-1">Il y a 3 jours</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                {notifications.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-lg border border-dashed">
+                    <Bell className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                    <p>Vous n'avez aucune notification.</p>
+                  </div>
+                ) : (
+                  notifications.map((notif) => (
+                    <Card key={notif.id_notification} className={cn("transition-colors", !notif.lu ? "bg-[#0B5FFF]/5 border-[#0B5FFF]/20" : "")}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className={cn("w-2 h-2 rounded-full mt-2 flex-shrink-0", !notif.lu ? "bg-[#0B5FFF]" : "bg-muted")} />
+                          <div className="flex-1">
+                            <p className={cn("font-medium", !notif.lu ? "text-[#0B5FFF]" : "text-foreground")}>{notif.titre}</p>
+                            <p className="text-sm text-muted-foreground">{notif.message}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(notif.date_notif).toLocaleDateString('fr-FR', {
+                                day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -862,7 +909,11 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
                       <Key className="w-4 h-4 mr-2" />
                       Changer le mot de passe
                     </Button>
-                    <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-destructive hover:text-destructive"
+                      onClick={handleDeleteAccountClick}
+                    >
                       <AlertTriangle className="w-4 h-4 mr-2" />
                       Supprimer mon compte
                     </Button>
@@ -873,6 +924,40 @@ export function MemberDashboard({ onLogout, onNavigate }: MemberDashboardProps) 
           )}
         </main>
       </div>
+
+      <AlertDialog open={showDeleteAccountDialog} onOpenChange={setShowDeleteAccountDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Votre compte sera définitivement supprimé et vous ne pourrez plus accéder à vos emprunts ou réservations.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeleteAccount} className="bg-destructive hover:bg-destructive/90">
+              Supprimer mon compte
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showCancelResDialog} onOpenChange={setShowCancelResDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Annuler la réservation ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Voulez-vous vraiment annuler cette réservation ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Non, garder</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCancelReservation}>
+              Oui, annuler
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
